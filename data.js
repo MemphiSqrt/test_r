@@ -61,8 +61,8 @@ const GameData = {
     },
     
     charImageMap: {
-        'x': 'pic/X0',   // 审计官X 
-        'y': 'pic/Y0',        // 助手Y
+        'x': './pic/X0',   // 审计官X 
+        'y': './pic/Y0',        // 助手Y
     },
 
     /* ★ 事件库 (Event Library) ★ */
