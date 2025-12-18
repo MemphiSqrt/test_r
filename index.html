@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代死者立言 (Speaker for the Dead) - V5</title>
+    <title>代死者立言 (Speaker for the Dead) - V7.1</title>
     <style>
         :root {
             --bg-color: #08080a;
@@ -13,6 +13,7 @@
             --accent-blue: #4a9eff;
             --accent-gold: #d4af37;
             --accent-red: #ff4a4a;
+            --dice-bg: #222;
         }
 
         body {
@@ -58,20 +59,11 @@
         .char-name { font-weight: bold; color: #fff; margin-bottom: 5px; display: flex; justify-content: space-between; }
         .char-status { font-size: 0.8em; color: var(--accent-gold); }
         .char-stats-row { display: flex; gap: 10px; margin-top: 5px; font-size: 0.85em; color: #aaa; }
-        .stat-badge { background: #333; padding: 2px 4px; border-radius: 3px; }
-
-        /* 左侧底部按钮 */
-        .sidebar-btn {
-            background: #1f1f25; border: 1px solid #444; color: #ddd; padding: 12px; 
-            width: 100%; cursor: pointer; text-align: center; transition: all 0.2s; font-weight: bold;
-            margin-top: 10px;
-        }
-        .sidebar-btn:hover { background: #333; border-color: var(--accent-blue); color: #fff; }
-
+        
         /* === 中间：事件流 === */
         #event-container { padding: 20px; display: flex; gap: 15px; flex-wrap: wrap; overflow-y: auto; align-content: flex-start; flex: 1; }
         .event-card {
-            width: 200px; height: 260px; background: #161616; border: 1px solid #444; padding: 15px;
+            width: 220px; height: 280px; background: #161616; border: 1px solid #444; padding: 15px;
             display: flex; flex-direction: column; position: relative; cursor: pointer; transition: transform 0.2s;
         }
         .event-card:hover { transform: translateY(-2px); border-color: #666; }
@@ -83,7 +75,7 @@
         .event-desc { font-size: 0.9em; color: #999; flex: 1; overflow: hidden; line-height: 1.5; }
         .event-assignee { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #333; color: var(--accent-gold); font-size: 0.9em; }
 
-        /* === 剧情弹窗 (覆盖层) === */
+        /* === 剧情弹窗 === */
         #story-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 100;
@@ -101,81 +93,52 @@
         }
         .story-btn:hover { border-color: var(--accent-blue); background: #1a1a25; }
 
-        /* === 底部按钮 === */
+        /* 判定结果样式 */
+        .check-result { margin: 10px 0; padding: 10px; border: 1px solid #444; background: var(--dice-bg); font-family: monospace; }
+        .check-success { color: #4aff4a; border-color: #4aff4a; }
+        .check-fail { color: #ff4a4a; border-color: #ff4a4a; }
+
+        /* === 底部与右侧 === */
         #bottom-bar { padding: 20px; background: #0e0e0e; border-top: 1px solid var(--border-color); text-align: right; }
         .next-turn-btn {
             background: var(--accent-gold); color: #000; border: none; padding: 12px 40px;
             font-weight: bold; font-size: 1.1em; cursor: pointer; clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
         }
-        .next-turn-btn:hover { background: #ffd700; }
-
-        /* === 右侧：任务指派与装备 === */
-        .panel-header { font-size: 1.1em; font-weight: bold; color: #fff; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid #333; }
         
-        .mission-slot {
-            background: #111; border: 1px solid #444; padding: 15px; margin-bottom: 15px;
-            cursor: pointer; text-align: center; transition: all 0.2s;
-        }
-        .mission-slot:hover { border-color: var(--accent-blue); background: #161620; }
-        .slot-title { display: block; color: #666; font-size: 0.8em; margin-bottom: 5px; }
-        .slot-content { font-size: 1.1em; color: var(--accent-gold); font-weight: bold; }
-        .slot-empty { color: #444; font-style: italic; }
-
-        .equip-slot {
-            background: #161616; border: 1px dashed #444; padding: 12px; margin-bottom: 10px;
-            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
-        }
-        .equip-slot:hover { border-color: #777; background: #1a1a1a; }
-        .slot-label { color: #666; font-size: 0.8em; }
-        .slot-val { color: var(--accent-blue); font-weight: bold; }
-        
+        .mission-slot, .equip-slot { background: #111; border: 1px solid #444; padding: 15px; margin-bottom: 10px; cursor: pointer; }
+        .mission-slot:hover, .equip-slot:hover { border-color: var(--accent-blue); }
         .inv-item { padding: 10px; border-bottom: 1px solid #222; cursor: pointer; display: flex; justify-content: space-between; color: #aaa; }
         .inv-item:hover { color: #fff; background: #1a1a1a; }
-        .inv-special { color: var(--accent-gold); }
+        .panel-header { font-size: 1.1em; font-weight: bold; color: #fff; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px; }
 
-        /* 通用模态框 */
-        #modal-wrapper {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
-            z-index: 200; display: none; justify-content: center; align-items: center;
-        }
+        #modal-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; display: none; justify-content: center; align-items: center; }
         #modal-content { background: #1a1a1a; width: 400px; max-height: 600px; padding: 20px; border: 1px solid #555; overflow-y: auto; }
-        
-        /* 物品详情样式 */
-        .item-detail-label { color: #888; font-size: 0.9em; margin-top: 10px; }
-        .item-detail-val { color: #fff; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div id="app-container">
-    <!-- 左栏：人物 -->
     <div id="sidebar-left">
         <div class="panel-header">人员档案</div>
         <div id="char-list" style="flex:1; overflow-y:auto;"></div>
-        
-        <!-- 新增：查看仓库按钮 -->
         <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #333;">
-            <button class="sidebar-btn" onclick="Game.viewInventory()">📦 查看仓库物品</button>
+            <div class="mission-slot" style="text-align:center" onclick="Game.viewInventory()">📦 查看仓库</div>
         </div>
     </div>
 
-    <!-- 中间：主界面 -->
     <div id="main-panel">
         <div id="top-status-bar">
             <div class="stat-box">📅 天数: <span class="stat-val" id="day-val">1</span></div>
             <div class="stat-box">💳 金钱: <span class="stat-val" id="money-val">0</span></div>
         </div>
 
-        <div id="event-container">
-            <!-- 事件卡片生成区 -->
-        </div>
-        <div style="flex:1"></div> <!-- 占位 -->
+        <div id="event-container"></div>
+        <div style="flex:1"></div>
 
         <div id="bottom-bar">
             <button class="next-turn-btn" onclick="Game.nextTurn()">下一回合 ⏩</button>
         </div>
 
-        <!-- 剧情弹窗 -->
         <div id="story-overlay">
             <div class="story-box">
                 <div class="story-title" id="story-title">标题</div>
@@ -185,144 +148,231 @@
         </div>
     </div>
 
-    <!-- 右栏：上下文面板 -->
     <div id="sidebar-right">
-        <div id="right-panel-content">
-            <!-- 动态内容 -->
-        </div>
+        <div id="right-panel-content"></div>
     </div>
 </div>
 
-<!-- 选择器/详情 模态框 -->
 <div id="modal-wrapper" onclick="if(event.target===this) this.style.display='none'">
-    <div id="modal-content" id="selector-list"></div>
+    <div id="modal-content"></div>
 </div>
 
 <script>
-/* ================================================================================
-   ★ 用户配置区 (USER CONFIGURATION) ★
-   ================================================================================
-*/
+// ================================================================================
+// ★★★ data.js (DATA) ★★★
+// ================================================================================
+
+/* 工具函数：判定系统 */
+function checkAttribute(charName, attrName, val, threshold) {
+    const roll = val > 0 ? Math.floor(Math.random() * val) : 0;
+    const success = roll >= threshold;
+    const colorClass = success ? 'check-success' : 'check-fail';
+    const resultText = success ? '【成功】' : '【失败】';
+    
+    const log = `<div class="check-result ${colorClass}">
+        [${attrName}判定] ${charName} (属性:${val})<br>
+        🎲 掷骰: ${roll} (目标 >= ${threshold}) -> ${resultText}
+    </div>`;
+    
+    return { success, roll, log };
+}
+
+// 对抗判定：valA vs valB
+function contestAttribute(nameA, valA, nameB, valB) {
+    const rollA = valA > 0 ? Math.floor(Math.random() * valA) : 0;
+    const rollB = valB > 0 ? Math.floor(Math.random() * valB) : 0;
+    const userWin = rollA >= rollB;
+    
+    const colorClass = userWin ? 'check-success' : 'check-fail';
+    const resultText = userWin ? `【${nameA} 胜】` : `【${nameB} 胜】`;
+    
+    const log = `<div class="check-result ${colorClass}">
+        [力量对抗]<br>
+        ${nameA}: 🎲 ${rollA} / ${valA}<br>
+        ${nameB}: 🎲 ${rollB} / ${valB}<br>
+        结果 -> ${resultText}
+    </div>`;
+    
+    return { userWin, rollA, rollB, log };
+}
 
 const GameData = {
-    // 1. 初始全局状态
     initialState: {
         day: 1,
         money: 100,
-        inventory: ["合成咖啡", "旧手枪", "故障卡：未来的废墟", "防弹衣"] 
+        flags: {}, // 存储剧情 flag
+        inventory: ["旧手枪", "故障卡：未来的废墟", "防弹衣"] 
     },
 
-    // 2. 初始队伍
     characters: [
-        { 
-            id: 'x', name: '审计官 X', role: '主角', 
-            stats: { int: 8, str: 4, sta: 5 },
-            equipment: { clothes: null, weapon: null, accessory: null } 
-        },
-        { 
-            id: 'y', name: '助手 Y', role: '战术支援', 
-            stats: { int: 4, str: 5, sta: 2 },
-            equipment: { clothes: null, weapon: null, accessory: null } 
-        }
+        { id: 'x', name: '审计官 X', role: '主角', stats: { int: 8, str: 4, sta: 5 }, equipment: { clothes: null, weapon: null, accessory: null } },
+        { id: 'y', name: '助手 Y', role: '战术支援', stats: { int: 4, str: 5, sta: 2 }, equipment: { clothes: null, weapon: null, accessory: null } }
     ],
 
-    // 3. 隐藏角色
     hiddenCharacters: {
-        'ghost': { 
-            id: 'ghost', name: '老鬼', role: '爆破专家', 
-            stats: { int: 3, str: 10, sta: 1 },
-            equipment: { clothes: null, weapon: '机械引爆器', accessory: null }
-        }
+        'ghost': { id: 'ghost', name: '老鬼', role: '爆破专家', stats: { int: 3, str: 10, sta: 1 }, equipment: { clothes: null, weapon: '机械引爆器', accessory: null } }
     },
 
-    // 4. 物品定义 (新增 desc 字段)
     itemDefinitions: {
-        "防弹衣": { 
-            slot: "clothes", bonus: "力+1", 
-            desc: "标准的凯夫拉纤维轻型护甲，虽然挡不住高能粒子束，但对付流弹绰绰有余。" 
-        },
-        "旧手枪": { 
-            slot: "weapon", bonus: "力+2", 
-            desc: "一把磨损严重的半自动手枪。握把上的编号已经被锉掉了。可靠性成疑，但总比拳头好。" 
-        },
-        "故障卡：未来的废墟": { 
-            slot: "accessory", bonus: "智+3", 
-            desc: "【关键道具】一段存储着不可逆熵增数据的芯片。仅仅是注视着它，就能让人感受到文明熄灭后的死寂。可以用来动摇信仰。" 
-        },
-        "合成咖啡": { 
-            slot: "misc", bonus: "无", 
-            desc: "由工业废渣回收再利用制成的黑色液体。味道像烧焦的轮胎，但咖啡因是真的。" 
-        },
-        "机械引爆器": { 
-            slot: "weapon", bonus: "力+5", 
-            desc: "旧时代的产物，没有电子信号，无法被黑客入侵。粗糙，残暴，有效。" 
-        }
+        "防弹衣": { slot: "clothes", bonus: "力+1", desc: "标准的凯夫拉纤维轻型护甲。" },
+        "旧手枪": { slot: "weapon", bonus: "力+2", desc: "一把磨损严重的半自动手枪。" },
+        "故障卡：未来的废墟": { slot: "misc", bonus: "无", desc: "【关键道具】一段存储着不可逆熵增数据的芯片。" },
+        "机械引爆器": { slot: "weapon", bonus: "力+5", desc: "粗糙，残暴，有效的旧时代引爆器。" }
     },
 
-    // 5. 事件库
-    events: [
+    /* ★ 事件库 (Event Library) ★ */
+    eventLibrary: [
         {
             id: 'daily_report',
             title: '每日述职',
-            desc: '向中央AI提交报告。无特殊情况不需战斗。',
+            desc: '向中央AI提交报告。日常例行公事。',
             type: 'daily',
+            trigger: () => true, // 总是触发
             logic: {
                 assigned: (char, items) => {
-                    return {
-                        text: `【述职完成】\n${char.name} 前往了上层区进行述职。\n虽然过程枯燥，但薪水照发。`,
-                        moneyChange: 10
-                    };
-                },
-                unassigned: () => null 
+                    return { text: `【述职完成】\n${char.name} 完成了今日的汇报。`, moneyChange: 10 };
+                }
             }
         },
+        
+        // --- 商场大停电 事件链 ---
+
+        // 事件 1: 初始调查
         {
-            id: 'mall_blackout',
-            title: '商场大停电',
-            desc: 'A区发生爆炸。老鬼正威胁要炸毁基站。',
+            id: 'mall_blackout_1',
+            title: '商场大停电 (I)',
+            desc: 'A区发生爆炸。需要在现场进行【智力判定】以追踪嫌疑人。',
             type: 'story',
-            ttl: 1, 
+            ttl: 1,
+            trigger: (state) => state.day === 1, // 第一天触发
             logic: {
-                assigned: (char, items) => {
-                    const hasGlitchCard = items.includes("故障卡：未来的废墟");
+                assigned: (char, items, state) => {
+                    // 智力判定，目标 3
+                    const check = checkAttribute(char.name, '智力', char.stats.int, 3);
+                    let resultText = check.log;
                     
-                    if (hasGlitchCard) {
-                        return {
-                            text: `【接触：老鬼】\n${char.name} 在烟雾中找到了老鬼。\n\n面对引爆器，你拿出了【故障卡】，展示了未来的毁灭景象。\n老鬼看着那个没有元宇宙的废墟未来，陷入了沉默。`,
-                            options: [
-                                { text: "邀请他加入 (真结局)", action: "recruit_ghost" }
-                            ]
-                        };
+                    if (check.success) {
+                        state.flags['flag_shopping_mall_0'] = true;
+                        resultText += `\n你成功在混乱的数据流中捕捉到了异常信号，锁定了老鬼的位置。`;
                     } else {
-                        return {
-                            text: `【接触：老鬼】\n${char.name} 试图接近老鬼，但他极其警觉。\n没有足够有力的证据动摇他的信念，谈判破裂了。`,
-                            options: [
-                                { text: "强行击毙 (获得赏金)", action: "kill_ghost" },
-                                { text: "撤退 (失败)", action: "retreat" }
-                            ]
-                        };
+                        state.flags['flag_shopping_mall_0'] = false;
+                        resultText += `\n现场过于混乱，你跟丢了信号。线索中断了。`;
                     }
+                    
+                    return { text: resultText };
+                },
+                unassigned: (state) => {
+                    state.flags['flag_shopping_mall_0'] = false;
+                    return { text: "【无人响应】你错过了最佳调查时间，线索中断。", moneyChange: -10, eventOver: true };
+                }
+            }
+        },
+
+        // 事件 2: 找到老鬼 (前提: flag_0 = true)
+        {
+            id: 'mall_blackout_2',
+            title: '商场大停电 (II)',
+            desc: '已锁定老鬼位置。需要决定如何与他对峙。建议携带【故障卡】。',
+            type: 'story',
+            ttl: 1,
+            // 触发条件：前置Flag为真，且本事件没触发过
+            trigger: (state, triggeredIds) => state.flags['flag_shopping_mall_0'] === true && !triggeredIds.includes('mall_blackout_2'),
+            logic: {
+                assigned: (char, items, state) => {
+                    const hasCard = items.includes("故障卡：未来的废墟");
+                    let text = `你在基站核心找到了老鬼。他正准备引爆。\n`;
+                    
+                    if (hasCard) {
+                        state.flags['flag_shopping_mall_1'] = true;
+                        text += `你拿出了【故障卡】，向他展示了那个没有元宇宙的废墟未来。\n老鬼的眼神动摇了。`;
+                    } else {
+                        state.flags['flag_shopping_mall_1'] = false;
+                        text += `你两手空空地试图说服他，但他根本听不进去。\n"伪善者！" 他怒吼道。`;
+                    }
+                    return { text: text };
+                },
+                unassigned: (state) => {
+                    // 无人处理，老鬼自爆
+                    state.flags['flag_shopping_mall_1'] = false; // 视为谈判失败
+                    return { text: "【行动失败】你没有前往对峙，老鬼引爆了基站。", moneyChange: -50, eventOver: true };
+                }
+            }
+        },
+
+        // 结局 1: 真结局 (招募)
+        {
+            id: 'mall_end_1',
+            title: '大停电：抉择',
+            desc: '老鬼已经被真相动摇。是时候做出决定了。',
+            type: 'story',
+            trigger: (state, triggeredIds) => state.flags['flag_shopping_mall_1'] === true && !triggeredIds.includes('mall_end_1'),
+            logic: {
+                assigned: (char, items, state) => {
+                    return {
+                        text: `老鬼放下了引爆器。"如果未来注定是废墟，那我宁愿做那个点火的人...但在那之前，我会帮你。"`,
+                        options: [
+                            { text: "伸出手 (招募老鬼)", action: "recruit_ghost" }
+                        ]
+                    };
+                }
+            }
+        },
+
+        // 结局 2: 坏结局 (线索中断)
+        {
+            id: 'mall_end_2',
+            title: '大停电：迷雾',
+            desc: '由于之前的调查失败，你只能处理善后工作。',
+            type: 'story',
+            // 注意：因为 mall_1 是在 Day 1 结算时发生，所以 Day 2 开始时 flag_0 为 false，此事件触发
+            trigger: (state, triggeredIds) => state.flags['flag_shopping_mall_0'] === false && !triggeredIds.includes('mall_end_2') && !triggeredIds.includes('mall_end_3'),
+            logic: {
+                assigned: (char, items, state) => {
+                    return { text: `虽然基站没有爆炸，但老鬼已经逃之夭夭。你只在现场找到了一些无用的零件。` };
+                },
+                unassigned: () => ({ text: "这里没什么好做的了。", eventOver: true })
+            }
+        },
+
+        // 结局 3: 惨烈结局 (力量对抗)
+        {
+            id: 'mall_end_3',
+            title: '大停电：死斗',
+            desc: '谈判破裂。老鬼准备引爆，必须立刻制止他！(力量对抗)',
+            type: 'story',
+            trigger: (state, triggeredIds) => state.flags['flag_shopping_mall_0'] === true && state.flags['flag_shopping_mall_1'] === false && !triggeredIds.includes('mall_end_3'),
+            logic: {
+                assigned: (char, items, state) => {
+                    // 力量对抗：角色 vs 老鬼(10)
+                    const contest = contestAttribute(char.name, char.stats.str, '老鬼', 10);
+                    let resultText = contest.log;
+
+                    if (contest.userWin) {
+                        resultText += `\n你冲上去，在引爆前一秒折断了老鬼的手腕。他痛苦地倒在地上，被随后赶来的特警击毙。`;
+                    } else {
+                        // 玩家输了：扣减力量，老鬼自杀
+                        char.stats.str = Math.max(0, char.stats.str - 1); // 永久扣属性
+                        resultText += `\n老鬼的力量超乎想象！他把你甩飞出去（力量 -1）。\n随后他大笑着引爆了身上的手雷，把自己炸成了碎片。`;
+                    }
+                    
+                    return { text: resultText };
                 },
                 unassigned: () => {
-                    return {
-                        text: `【悲报：A区基站损毁】\n因为无人响应警报，老鬼引爆了炸弹。\n数百人的上传数据丢失。\n安全局扣除了你的资金作为惩罚。`,
-                        moneyChange: -50,
-                        eventOver: true
-                    };
+                    return { text: "【悲剧】无人制止，基站被彻底炸毁。", moneyChange: -100, eventOver: true };
                 }
             }
         }
     ]
 };
 
-/* ================================================================================
-   ★ 游戏引擎 (GAME ENGINE) ★
-   ================================================================================
-*/
+// ================================================================================
+// ★★★ 游戏引擎 (LOGIC) ★★★
+// ================================================================================
 
 const Game = {
     state: {},
-    activeEvents: [],
+    activeEvents: [], // 当前显示的事件卡片
+    triggeredEventIds: [], // 历史触发过的事件ID
     storyQueue: [],
     
     selectedCharId: null, 
@@ -333,20 +383,39 @@ const Game = {
         this.state = JSON.parse(JSON.stringify(GameData.initialState));
         this.state.characters = JSON.parse(JSON.stringify(GameData.characters));
         
-        // ★★★ 修复点：使用浅拷贝而不是 JSON 序列化，以保留 logic 函数 ★★★
-        this.activeEvents = GameData.events.map(e => ({...e}));
-        
-        if(this.state.characters.length > 0) {
-            this.selectedCharId = this.state.characters[0].id;
-        }
+        // 初始时不加载任何事件，通过 updateActiveEvents 动态加载
+        this.updateActiveEvents();
 
+        if(this.state.characters.length > 0) this.selectedCharId = this.state.characters[0].id;
         this.renderAll();
     },
 
+    // 核心：每回合刷新事件池
+    updateActiveEvents() {
+        // 1. 检查库中所有事件
+        GameData.eventLibrary.forEach(evtTemplate => {
+            // 如果事件已经激活且还在列表中，跳过
+            if (this.activeEvents.find(e => e.id === evtTemplate.id)) return;
+            
+            // 检查触发条件
+            if (evtTemplate.trigger && evtTemplate.trigger(this.state, this.triggeredEventIds)) {
+                // 实例化事件（深拷贝结构，浅拷贝函数）
+                const newEvent = { ...evtTemplate }; 
+                this.activeEvents.push(newEvent);
+                
+                // 如果是单次触发的剧情事件，记录ID防止重复（除了daily类型）
+                if (evtTemplate.type !== 'daily') {
+                    this.triggeredEventIds.push(evtTemplate.id);
+                }
+            }
+        });
+    },
+
     nextTurn() {
-        this.state.day++;
         this.storyQueue = [];
 
+        // 1. 处理当前所有活跃事件
+        // 倒序遍历方便删除
         for (let i = this.activeEvents.length - 1; i >= 0; i--) {
             const event = this.activeEvents[i];
             const assignment = this.assignments[event.id]; 
@@ -358,53 +427,65 @@ const Game = {
                 const items = Object.values(char.equipment).filter(x => x); 
                 if (assignment.itemId) items.push(assignment.itemId);
                 
-                // 执行逻辑（现在这里不会是 undefined 了）
                 if (event.logic && event.logic.assigned) {
-                    result = event.logic.assigned(char, items);
+                    result = event.logic.assigned(char, items, this.state);
                 }
             } else {
                 if (event.logic && event.logic.unassigned) {
-                    result = event.logic.unassigned();
+                    result = event.logic.unassigned(this.state);
                 }
             }
 
+            // 处理结果
             if (result) {
                 if (result.moneyChange) this.state.money += result.moneyChange;
                 
-                this.storyQueue.push({
-                    title: event.title,
-                    content: result.text,
-                    options: result.options || [{ text: "确定", action: "close" }]
-                });
+                if (result.text) {
+                    this.storyQueue.push({
+                        title: event.title,
+                        content: result.text,
+                        options: result.options || [{ text: "确定", action: "close" }]
+                    });
+                }
 
+                // 标记删除：如果 explicit eventOver 或者 是已处理的剧情事件
                 if (result.eventOver || (event.type === 'story' && assignment && assignment.charId)) {
                    event._shouldDelete = true;
                 }
             }
 
+            // TTL 逻辑
             if (event.ttl !== undefined) {
                 event.ttl--;
                 if (event.ttl < 0) {
                      if (!event._shouldDelete && (!assignment || !assignment.charId)) {
                          this.storyQueue.push({
                              title: event.title,
-                             content: "【事件过期】该事件已失效，机会消失了。",
+                             content: "【事件过期】你错失了机会。",
                              options: [{ text: "确定", action: "close" }]
                          });
+                         // 剧情过期通常意味着某种默认失败，这里为了简化，设为 Flag False
+                         if (event.id === 'mall_blackout_1') this.state.flags['flag_shopping_mall_0'] = false;
                      }
                      event._shouldDelete = true;
                 }
             }
         }
 
+        // 2. 清理过期事件
         this.activeEvents = this.activeEvents.filter(e => !e._shouldDelete);
         this.assignments = {}; 
         this.activeEventId = null; 
+
+        // 3. 推进天数并加载新事件
+        this.state.day++;
+        this.updateActiveEvents();
         
         this.renderAll();
         this.playNextStory();
     },
 
+    // --- 剧情播放 ---
     playNextStory() {
         if (this.storyQueue.length === 0) {
             document.getElementById('story-overlay').style.display = 'none';
@@ -419,7 +500,7 @@ const Game = {
 
         overlay.style.display = 'flex';
         titleEl.innerText = story.title;
-        textEl.innerText = story.content;
+        textEl.innerHTML = story.content.replace(/\n/g, '<br>'); // 支持换行
         optsEl.innerHTML = '';
 
         story.options.forEach(opt => {
@@ -439,147 +520,83 @@ const Game = {
             this.state.characters.push(ghostData);
             this.storyQueue.push({
                 title: "招募成功",
-                content: "老鬼已加入队伍！点击左侧栏可查看属性。",
+                content: "老鬼已加入队伍！他是个危险分子，但在废墟中很有用。",
                 options: [{ text: "确定", action: "close" }]
             });
-            this.renderAll();
-        } else if (action === 'kill_ghost') {
-            this.state.money += 200;
-            this.storyQueue.push({
-                title: "任务结束",
-                content: "你消灭了威胁。获得赏金 200。",
-                options: [{ text: "确定", action: "close" }]
-            });
-            this.renderAll();
         }
-        this.playNextStory();
-    },
-
-    // --- 交互操作 ---
-
-    viewInventory() {
-        this.selectedCharId = null;
-        this.activeEventId = null;
+        // 继续播放
+        if (action === 'close') {
+             // do nothing, just next
+        }
+        
+        // 刷新UI以显示新队友
         this.renderAll();
+        
+        // 稍微延迟一点播放下一条，体验更好
+        setTimeout(() => this.playNextStory(), 100);
     },
 
+    // --- UI 渲染与交互 (这部分保持 V6 逻辑，做微调) ---
+    viewInventory() { this.selectedCharId = null; this.activeEventId = null; this.renderAll(); },
+    
+    // 显示物品详情弹窗
     showItemDetails(itemName) {
         const def = GameData.itemDefinitions[itemName] || { slot: 'misc', bonus: '无', desc: '暂无描述' };
         const modal = document.getElementById('modal-wrapper');
-        const list = document.getElementById('modal-content');
+        const content = document.getElementById('modal-content');
         
         modal.style.display = 'flex';
         
-        // 部位名称映射
         const slotNames = { 'clothes': '👔 服装', 'weapon': '🔫 武器', 'accessory': '💍 饰品', 'misc': '📦 杂物' };
         const slotName = slotNames[def.slot] || def.slot;
 
-        list.innerHTML = `
+        content.innerHTML = `
             <h3 style="color:var(--accent-blue); border-bottom:1px solid #333; padding-bottom:10px;">${itemName}</h3>
-            
-            <div class="item-detail-label">物品描述</div>
-            <div class="item-detail-val" style="line-height:1.6; color:#ccc;">${def.desc || "暂无描述"}</div>
+            <div style="color:#888; font-size:0.9em; margin-top:10px;">物品描述</div>
+            <div style="color:#fff; margin-bottom:5px; line-height:1.6;">${def.desc || "暂无描述"}</div>
             
             <div style="display:flex; gap:20px; margin-top:20px; padding-top:10px; border-top:1px dashed #333">
                 <div>
-                    <div class="item-detail-label">装备部位</div>
-                    <div class="item-detail-val">${slotName}</div>
+                    <div style="color:#888; font-size:0.9em;">装备部位</div>
+                    <div style="color:#fff;">${slotName}</div>
                 </div>
                 <div>
-                    <div class="item-detail-label">属性加成</div>
-                    <div class="item-detail-val" style="color:var(--accent-gold); font-weight:bold;">${def.bonus}</div>
+                    <div style="color:#888; font-size:0.9em;">属性加成</div>
+                    <div style="color:var(--accent-gold); font-weight:bold;">${def.bonus}</div>
                 </div>
             </div>
-
-            <div class="sidebar-btn" style="margin-top:20px;" onclick="document.getElementById('modal-wrapper').style.display='none'">关闭</div>
+            
+             <div class="inv-item" style="margin-top:20px; text-align:center; color:#ddd; border:1px solid #444;" onclick="document.getElementById('modal-wrapper').style.display='none'">关闭</div>
         `;
     },
-
-    selectChar(charId) {
-        this.selectedCharId = charId;
-        this.activeEventId = null; 
-        this.renderAll();
-    },
-
-    selectEvent(eventId) {
-        this.activeEventId = eventId;
-        if (!this.assignments[eventId]) {
-            this.assignments[eventId] = { charId: null, itemId: null };
-        }
+    
+    selectChar(charId) { this.selectedCharId = charId; this.activeEventId = null; this.renderAll(); },
+    
+    selectEvent(eventId) { 
+        this.activeEventId = eventId; 
+        if (!this.assignments[eventId]) this.assignments[eventId] = { charId: null, itemId: null };
         this.renderAll();
     },
 
     assignCharToActiveEvent() {
         if (!this.activeEventId) return;
-        
-        const modal = document.getElementById('modal-wrapper');
-        const list = document.getElementById('modal-content');
-        modal.style.display = 'flex';
-        list.innerHTML = '<h3>选择执行干员</h3>';
-
-        this.state.characters.forEach(char => {
+        this.openModal('选择执行干员', this.state.characters.map(c => {
             let isBusy = false;
-            for (let eid in this.assignments) {
-                if (eid !== this.activeEventId && this.assignments[eid].charId === char.id) isBusy = true;
-            }
-
-            const btn = document.createElement('div');
-            btn.className = 'inv-item';
-            btn.style.color = isBusy ? '#555' : '#fff';
-            btn.innerText = char.name + (isBusy ? " (忙碌)" : "");
-            
-            if (!isBusy) {
-                btn.onclick = () => {
-                    this.assignments[this.activeEventId].charId = char.id;
-                    modal.style.display = 'none';
-                    this.renderAll();
-                };
-            }
-            list.appendChild(btn);
-        });
-        
-        const cancelBtn = document.createElement('div');
-        cancelBtn.className = 'inv-item';
-        cancelBtn.style.color = '#ff4a4a';
-        cancelBtn.innerText = "[撤回人员]";
-        cancelBtn.onclick = () => {
-            this.assignments[this.activeEventId].charId = null;
-            modal.style.display = 'none';
-            this.renderAll();
-        }
-        list.appendChild(cancelBtn);
+            for(let eid in this.assignments) if(eid !== this.activeEventId && this.assignments[eid].charId === c.id) isBusy = true;
+            return {
+                text: c.name + (isBusy?" (忙碌)":""),
+                disabled: isBusy,
+                onClick: () => { this.assignments[this.activeEventId].charId = c.id; this.closeModal(); this.renderAll(); }
+            };
+        }), true); // true for adding a cancel button
     },
 
     assignItemToActiveEvent() {
         if (!this.activeEventId) return;
-
-        const modal = document.getElementById('modal-wrapper');
-        const list = document.getElementById('modal-content');
-        modal.style.display = 'flex';
-        list.innerHTML = '<h3>携带特殊物品 (可选)</h3>';
-
-        this.state.inventory.forEach(item => {
-            const btn = document.createElement('div');
-            btn.className = 'inv-item';
-            btn.innerText = item;
-            btn.onclick = () => {
-                this.assignments[this.activeEventId].itemId = item;
-                modal.style.display = 'none';
-                this.renderAll();
-            };
-            list.appendChild(btn);
-        });
-
-        const noneBtn = document.createElement('div');
-        noneBtn.className = 'inv-item';
-        noneBtn.style.color = '#aaa';
-        noneBtn.innerText = "[不携带额外物品]";
-        noneBtn.onclick = () => {
-            this.assignments[this.activeEventId].itemId = null;
-            modal.style.display = 'none';
-            this.renderAll();
-        }
-        list.appendChild(noneBtn);
+        this.openModal('选择携带物品', [
+            ...this.state.inventory.map(i => ({ text: i, onClick: () => { this.assignments[this.activeEventId].itemId = i; this.closeModal(); this.renderAll(); } })),
+            { text: "[不携带]", onClick: () => { this.assignments[this.activeEventId].itemId = null; this.closeModal(); this.renderAll(); }, color: '#aaa' }
+        ]);
     },
 
     toggleEquip(slotName) {
@@ -587,87 +604,73 @@ const Game = {
         const char = this.state.characters.find(c => c.id === this.selectedCharId);
         const currentItem = char.equipment[slotName];
 
-        const modal = document.getElementById('modal-wrapper');
-        const list = document.getElementById('modal-content');
-        modal.style.display = 'flex';
-        list.innerHTML = `<h3>更换 ${slotName}</h3>`;
-
+        const options = [];
         if (currentItem) {
-            const unequipBtn = document.createElement('div');
-            unequipBtn.className = 'inv-item';
-            unequipBtn.innerText = `[卸下] ${currentItem}`;
-            unequipBtn.style.color = '#ff4a4a';
-            unequipBtn.onclick = () => {
-                this.state.inventory.push(currentItem);
-                char.equipment[slotName] = null;
-                this.renderAll();
-                modal.style.display = 'none';
-            };
-            list.appendChild(unequipBtn);
+            options.push({ text: `[卸下] ${currentItem}`, color: '#ff4a4a', onClick: () => { this.state.inventory.push(currentItem); char.equipment[slotName] = null; this.closeModal(); this.renderAll(); } });
         }
-
+        
         this.state.inventory.forEach((item, idx) => {
             const def = GameData.itemDefinitions[item] || { slot: 'misc' };
             if (def.slot === slotName) {
-                const btn = document.createElement('div');
-                btn.className = 'inv-item';
-                btn.innerText = item + ` (${def.bonus})`;
-                btn.onclick = () => {
+                options.push({ text: item + ` (${def.bonus})`, onClick: () => {
                     if (char.equipment[slotName]) this.state.inventory.push(char.equipment[slotName]);
                     char.equipment[slotName] = item;
                     this.state.inventory.splice(idx, 1);
-                    this.renderAll();
-                    modal.style.display = 'none';
-                };
-                list.appendChild(btn);
+                    this.closeModal(); this.renderAll();
+                }});
             }
         });
+
+        this.openModal(`更换 ${slotName}`, options);
+    },
+
+    // 统一模态框工具
+    openModal(title, items, hasWithdraw = false) {
+        const modal = document.getElementById('modal-wrapper');
+        const content = document.getElementById('modal-content');
+        modal.style.display = 'flex';
+        content.innerHTML = `<h3 style="color:var(--accent-blue)">${title}</h3>`;
         
-        // 如果仓库没有该部位的装备，提示一下
-        const hasItem = this.state.inventory.some(item => {
-            const def = GameData.itemDefinitions[item] || { slot: 'misc' };
-            return def.slot === slotName;
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'inv-item';
+            div.style.color = item.color || (item.disabled ? '#555' : '#fff');
+            div.innerText = item.text;
+            if(!item.disabled) div.onclick = item.onClick;
+            content.appendChild(div);
         });
-        if(!hasItem && !currentItem) {
-             const tip = document.createElement('div');
-             tip.style.padding = '10px';
-             tip.style.color = '#666';
-             tip.innerText = "仓库里没有可用的装备。";
-             list.appendChild(tip);
+
+        if(hasWithdraw) {
+            const div = document.createElement('div');
+            div.className = 'inv-item';
+            div.style.color = '#ff4a4a';
+            div.innerText = "[撤回指派]";
+            div.onclick = () => { this.assignments[this.activeEventId].charId = null; this.closeModal(); this.renderAll(); };
+            content.appendChild(div);
         }
     },
+    closeModal() { document.getElementById('modal-wrapper').style.display = 'none'; },
 
     renderAll() {
         document.getElementById('day-val').innerText = this.state.day;
         document.getElementById('money-val').innerText = this.state.money;
-        this.renderSidebarLeft();
-        this.renderEvents();
-        this.renderSidebarRight();
-    },
 
-    renderSidebarLeft() {
-        const container = document.getElementById('char-list');
-        container.innerHTML = '';
-        
+        // 1. 左侧：人物
+        const charContainer = document.getElementById('char-list');
+        charContainer.innerHTML = '';
         this.state.characters.forEach(char => {
             let isBusy = false;
-            let busyEventTitle = '';
-            for(let eid in this.assignments) {
-                if(this.assignments[eid].charId === char.id) {
-                    isBusy = true;
-                    const evt = this.activeEvents.find(e=>e.id===eid);
-                    if(evt) busyEventTitle = evt.title;
-                }
-            }
+            let busyTitle = "";
+            for(let eid in this.assignments) if(this.assignments[eid].charId === char.id) { isBusy=true; busyTitle = this.activeEvents.find(e=>e.id===eid)?.title; }
 
             const div = document.createElement('div');
             div.className = `char-card ${this.selectedCharId === char.id ? 'selected' : ''} ${isBusy ? 'busy' : ''}`;
             div.onclick = () => this.selectChar(char.id);
             
+            // 计算加成
             let bonusStr = 0, bonusInt = 0;
-            Object.values(char.equipment).forEach(item => {
-                if(!item) return;
-                const def = GameData.itemDefinitions[item];
+            Object.values(char.equipment).forEach(i => {
+                const def = GameData.itemDefinitions[i];
                 if(def && def.bonus) {
                     if(def.bonus.includes('力')) bonusStr += parseInt(def.bonus.split('+')[1]||0);
                     if(def.bonus.includes('智')) bonusInt += parseInt(def.bonus.split('+')[1]||0);
@@ -675,43 +678,30 @@ const Game = {
             });
 
             div.innerHTML = `
-                <div class="char-name">
-                    ${char.name} 
-                    <span class="stat-badge">${char.role}</span>
-                </div>
-                <div class="char-status">${isBusy ? '➤ ' + busyEventTitle : '待命'}</div>
+                <div class="char-name">${char.name} <span class="stat-badge">${char.role}</span></div>
+                <div class="char-status" style="color:${isBusy?'var(--accent-gold)':'#666'}">${isBusy ? '➤ ' + busyTitle : '待命'}</div>
                 <div class="char-stats-row">
                     <span style="${bonusInt>0?'color:#4a9eff':''}">智:${char.stats.int + bonusInt}</span>
                     <span style="${bonusStr>0?'color:#4a9eff':''}">力:${char.stats.str + bonusStr}</span>
                     <span>势:${char.stats.sta}</span>
                 </div>
             `;
-            container.appendChild(div);
+            charContainer.appendChild(div);
         });
-    },
 
-    renderEvents() {
-        const container = document.getElementById('event-container');
-        container.innerHTML = '';
+        // 2. 中间：事件
+        const eventContainer = document.getElementById('event-container');
+        eventContainer.innerHTML = '';
         this.activeEvents.forEach(e => {
-            const div = document.createElement('div');
             const assignment = this.assignments[e.id];
             const hasChar = assignment && assignment.charId;
+            const assigneeName = hasChar ? this.state.characters.find(c=>c.id===assignment.charId).name : '';
             
-            const isActive = this.activeEventId === e.id;
-            const isConfigured = hasChar;
-
-            div.className = `event-card ${isActive ? 'active' : ''} ${isConfigured ? 'configured' : ''}`;
+            const div = document.createElement('div');
+            div.className = `event-card ${this.activeEventId === e.id ? 'active' : ''} ${hasChar ? 'configured' : ''}`;
             div.onclick = () => this.selectEvent(e.id);
             
-            let assigneeName = '';
-            if (hasChar) {
-                const c = this.state.characters.find(char => char.id === assignment.charId);
-                assigneeName = c ? c.name : '未知';
-            }
-            
-            let ttlHtml = e.ttl !== undefined ? `<div class="event-ttl">⏳ 剩 ${e.ttl} 天</div>` : '';
-            
+            const ttlHtml = e.ttl !== undefined ? `<div class="event-ttl">⏳ 剩 ${e.ttl} 天</div>` : '';
             div.innerHTML = `
                 ${ttlHtml}
                 <div style="font-size:0.8em; color:#666; text-transform:uppercase">${e.type}</div>
@@ -719,76 +709,62 @@ const Game = {
                 <div class="event-desc">${e.desc}</div>
                 ${hasChar ? `<div class="event-assignee">➤ 已指派: ${assigneeName}</div>` : ''}
             `;
-            container.appendChild(div);
+            eventContainer.appendChild(div);
         });
-    },
 
-    renderSidebarRight() {
-        const container = document.getElementById('right-panel-content');
-        container.innerHTML = '';
-
-        // 模式 A：任务指派模式
+        // 3. 右侧：上下文
+        const rightContainer = document.getElementById('right-panel-content');
+        rightContainer.innerHTML = '';
+        
         if (this.activeEventId) {
             const event = this.activeEvents.find(e => e.id === this.activeEventId);
-            if (!event) return;
-            const assignment = this.assignments[this.activeEventId] || { charId: null, itemId: null };
-            
-            container.innerHTML = `<div class="panel-header">指派任务: ${event.title}</div>`;
-            
-            const charSlot = document.createElement('div');
-            charSlot.className = 'mission-slot';
-            charSlot.onclick = () => this.assignCharToActiveEvent();
-            const charName = assignment.charId ? this.state.characters.find(c => c.id === assignment.charId).name : '点击选择人员';
-            charSlot.innerHTML = `<span class="slot-title">执行干员</span><span class="${assignment.charId?'slot-content':'slot-empty'}">${charName}</span>`;
-            container.appendChild(charSlot);
+            const assignment = this.assignments[this.activeEventId];
+            if(event) {
+                const charName = assignment.charId ? this.state.characters.find(c => c.id === assignment.charId).name : '点击选择人员';
+                const itemName = assignment.itemId ? assignment.itemId : '点击选择物品';
+                
+                rightContainer.innerHTML = `<div class="panel-header">指派: ${event.title}</div>`;
+                
+                const charSlot = document.createElement('div');
+                charSlot.className = 'mission-slot';
+                charSlot.onclick = () => this.assignCharToActiveEvent();
+                charSlot.innerHTML = `<span class="slot-title">执行干员</span><span class="slot-content" style="${!assignment.charId?'color:#444;font-style:italic':''}">${charName}</span>`;
+                rightContainer.appendChild(charSlot);
 
-            const itemSlot = document.createElement('div');
-            itemSlot.className = 'mission-slot';
-            itemSlot.onclick = () => this.assignItemToActiveEvent();
-            const itemName = assignment.itemId ? assignment.itemId : '点击选择物品';
-            itemSlot.innerHTML = `<span class="slot-title">携带物品 (可选)</span><span class="${assignment.itemId?'slot-content inv-special':'slot-empty'}">${itemName}</span>`;
-            container.appendChild(itemSlot);
-
-            const tip = document.createElement('div');
-            tip.style.color = '#666'; tip.style.fontSize='0.9em';
-            tip.innerText = "提示：指派完成后，该人员状态将变为忙碌。";
-            container.appendChild(tip);
-            return;
-        }
-
-        // 模式 B：装备管理模式
-        if (this.selectedCharId) {
+                const itemSlot = document.createElement('div');
+                itemSlot.className = 'mission-slot';
+                itemSlot.onclick = () => this.assignItemToActiveEvent();
+                itemSlot.innerHTML = `<span class="slot-title">携带物品</span><span class="slot-content" style="${!assignment.itemId?'color:#444;font-style:italic':''}">${itemName}</span>`;
+                rightContainer.appendChild(itemSlot);
+                
+                const desc = document.createElement('div');
+                desc.style.padding='10px'; desc.style.color='#888'; desc.style.fontSize='0.9em';
+                desc.innerText = event.desc;
+                rightContainer.appendChild(desc);
+            }
+        } else if (this.selectedCharId) {
             const char = this.state.characters.find(c => c.id === this.selectedCharId);
-            if(!char) return;
-
-            container.innerHTML = `<div class="panel-header">配置装备: ${char.name}</div>`;
-            const slots = [
-                { key: 'clothes', label: '👔 服装' },
-                { key: 'weapon', label: '🔫 武器' },
-                { key: 'accessory', label: '💍 饰品' }
-            ];
-
-            slots.forEach(slot => {
+            rightContainer.innerHTML = `<div class="panel-header">装备: ${char.name}</div>`;
+            const slots = [{k:'clothes',n:'👔 服装'}, {k:'weapon',n:'🔫 武器'}, {k:'accessory',n:'💍 饰品'}];
+            slots.forEach(s => {
+                const item = char.equipment[s.k];
+                const def = item ? GameData.itemDefinitions[item] : null;
                 const div = document.createElement('div');
                 div.className = 'equip-slot';
-                div.onclick = () => this.toggleEquip(slot.key);
-                const item = char.equipment[slot.key];
-                const def = item ? (GameData.itemDefinitions[item] || {}) : {};
-                div.innerHTML = `<span class="slot-label">${slot.label}</span><span class="slot-val" style="${item?'':'color:#444;font-weight:normal'}">${item ? item + (def.bonus?` (${def.bonus})`:'') : '空'}</span>`;
-                container.appendChild(div);
+                div.onclick = () => this.toggleEquip(s.k);
+                div.innerHTML = `<span class="slot-label">${s.n}</span><span class="slot-val" style="${!item?'color:#444;font-weight:normal':''}">${item ? item + (def?.bonus ? ` (${def.bonus})` : '') : '空'}</span>`;
+                rightContainer.appendChild(div);
             });
-            return;
+        } else {
+            rightContainer.innerHTML = `<div class="panel-header">仓库列表 (点击详情)</div>`;
+            this.state.inventory.forEach(i => {
+                const div = document.createElement('div');
+                div.className = 'inv-item';
+                div.innerText = i;
+                div.onclick = () => Game.showItemDetails(i); // 使用新加的函数
+                rightContainer.appendChild(div);
+            });
         }
-
-        // 模式 C：查看仓库模式
-        container.innerHTML = `<div class="panel-header">公共仓库 (点击查看详情)</div>`;
-        this.state.inventory.forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'inv-item';
-            row.innerText = item;
-            row.onclick = () => this.showItemDetails(item); // 绑定点击事件
-            container.appendChild(row);
-        });
     }
 };
 
