@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代死者立言 (Speaker for the Dead) - V4</title>
+    <title>代死者立言 (Speaker for the Dead) - V5</title>
     <style>
         :root {
             --bg-color: #08080a;
@@ -332,7 +332,9 @@ const Game = {
     init() {
         this.state = JSON.parse(JSON.stringify(GameData.initialState));
         this.state.characters = JSON.parse(JSON.stringify(GameData.characters));
-        this.activeEvents = JSON.parse(JSON.stringify(GameData.events));
+        
+        // ★★★ 修复点：使用浅拷贝而不是 JSON 序列化，以保留 logic 函数 ★★★
+        this.activeEvents = GameData.events.map(e => ({...e}));
         
         if(this.state.characters.length > 0) {
             this.selectedCharId = this.state.characters[0].id;
@@ -356,6 +358,7 @@ const Game = {
                 const items = Object.values(char.equipment).filter(x => x); 
                 if (assignment.itemId) items.push(assignment.itemId);
                 
+                // 执行逻辑（现在这里不会是 undefined 了）
                 if (event.logic && event.logic.assigned) {
                     result = event.logic.assigned(char, items);
                 }
