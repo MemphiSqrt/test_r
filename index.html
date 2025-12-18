@@ -264,6 +264,7 @@ const Game = {
                     this.storyQueue.push({
                         title: event.title,
                         content: result.text,
+                        image: result.image,
                         options: result.options || [{ text: "确定", action: "close" }]
                     });
                 }
