@@ -59,6 +59,11 @@ const GameData = {
         "故障卡：未来的废墟": { slot: "misc", bonus: "无", desc: "【关键道具】一段存储着不可逆熵增数据的芯片。" },
         "机械引爆器": { slot: "weapon", bonus: "力+5", desc: "粗糙，残暴，有效的旧时代引爆器。" }
     },
+    
+    charImageMap: {
+        'x': 'pic/X0',   // 审计官X 
+        'y': 'pic/Y0',        // 助手Y
+    },
 
     /* ★ 事件库 (Event Library) ★ */
     eventLibrary: [
@@ -90,6 +95,7 @@ const GameData = {
                     // 智力判定，目标 3
                     const check = checkAttribute(char.name, '智力', char.stats.int, 3);
                     let resultText = check.log;
+                    let targetImage = GameData.charImageMap[char.id] + '.png';
                     
                     if (check.success) {
                         state.flags['flag_shopping_mall_0'] = true;
@@ -99,7 +105,10 @@ const GameData = {
                         resultText += `\n现场过于混乱，你跟丢了信号。线索中断了。`;
                     }
                     
-                    return { text: resultText };
+                    return { 
+                        text: resultText,
+                        image: targetImage
+                    };
                 },
                 unassigned: (state) => {
                     state.flags['flag_shopping_mall_0'] = false;
