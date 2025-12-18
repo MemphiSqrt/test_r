@@ -113,6 +113,25 @@
 
         #modal-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; display: none; justify-content: center; align-items: center; }
         #modal-content { background: #1a1a1a; width: 400px; max-height: 600px; padding: 20px; border: 1px solid #555; overflow-y: auto; }
+
+
+        /* ★★★ 新增：左下角剧情图片样式 ★★★ */
+        #story-char-img {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 300px; /* 默认大小，可用代码控制 */
+            height: auto;
+            z-index: 150; /* 在普通UI之上，但在模态框之下(如果需要) */
+            display: none; /* 默认隐藏 */
+            transition: opacity 0.3s ease;
+            /* 如果你希望图片完全不阻挡点击（哪怕看不见悬停效果），可以加上 pointer-events: none; */
+        }
+        
+        #story-char-img:hover {
+            opacity: 0.4; /* 悬停半透明 */
+        }
+        
     </style>
 </head>
 <body>
@@ -156,6 +175,10 @@
 <div id="modal-wrapper" onclick="if(event.target===this) this.style.display='none'">
     <div id="modal-content"></div>
 </div>
+
+<!-- ★★★ 新增：图片元素 ★★★ -->
+<!-- 放在 app-container 之外，确保定位相对于窗口 -->
+<img id="story-char-img" src="" alt="Story Character">
 
 <!-- ★★★ 关键点：在这里引用 data.js ★★★ -->
 <!-- 务必确保 data.js 文件和本文件在同一个目录下 -->
@@ -284,8 +307,10 @@ const Game = {
 
     // --- 剧情播放 ---
     playNextStory() {
+        // ★★★ 修改：如果队列为空，隐藏弹窗同时也隐藏图片 ★★★
         if (this.storyQueue.length === 0) {
             document.getElementById('story-overlay').style.display = 'none';
+            document.getElementById('story-char-img').style.display = 'none'; // 隐藏图片
             return;
         }
 
@@ -294,13 +319,29 @@ const Game = {
         const titleEl = document.getElementById('story-title');
         const textEl = document.getElementById('story-text');
         const optsEl = document.getElementById('story-options');
+        
+        // ★★★ 新增：处理图片逻辑 ★★★
+        const imgEl = document.getElementById('story-char-img');
+        if (story.image) {
+            imgEl.src = story.image;
+            imgEl.style.display = 'block';
+            
+            // 如果 story 对象里有自定义大小，可以在这里应用
+            // 例如 story.imgWidth
+            if (story.imgWidth) imgEl.style.width = story.imgWidth;
+            else imgEl.style.width = '300px'; // 重置为默认
+            
+        } else {
+            imgEl.style.display = 'none';
+        }
 
         overlay.style.display = 'flex';
         titleEl.innerText = story.title;
-        textEl.innerHTML = story.content.replace(/\n/g, '<br>'); // 支持换行
+        textEl.innerHTML = story.content.replace(/\n/g, '<br>'); 
         optsEl.innerHTML = '';
 
         story.options.forEach(opt => {
+            // ... existing button creation ...
             const btn = document.createElement('div');
             btn.className = 'story-btn';
             btn.innerText = opt.text + " ➤";
@@ -309,6 +350,7 @@ const Game = {
             };
             optsEl.appendChild(btn);
         });
+        
     },
 
     handleAction(action) {
