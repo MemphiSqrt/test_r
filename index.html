@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夜城协议: 源代码</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --terminal-green: #0f0;
+            --terminal-dim: #004400;
+            --alert-red: #ff3333;
+            --ui-border: 2px solid #333;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--terminal-green);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        #game-container {
+            width: 800px;
+            height: 90%;
+            display: flex;
+            flex-direction: column;
+            border: var(--ui-border);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+            background: #000;
+            position: relative;
+        }
+        /* 扫描线效果 */
+        #game-container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* 顶部状态栏 */
+        #status-bar {
+            padding: 10px;
+            border-bottom: var(--ui-border);
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+
+        /* 主要文本区域 */
+        #log-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .story-text {
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+        .system-msg {
+            color: #888;
+            font-style: italic;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            border-left: 2px solid #555;
+            padding-left: 10px;
+        }
+
+        /* 选项区域 */
+        #choices-area {
+            padding: 20px;
+            border-top: var(--ui-border);
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 开发者工具区域 */
+        #dev-tools {
+            padding: 5px;
+            border-top: 1px dashed #333;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background: #0a0a0a;
+        }
+        .dev-btn {
+            font-size: 12px;
+            padding: 5px 10px;
+            border: 1px solid #555;
+            color: #888;
+        }
+        .dev-btn:hover {
+            border-color: var(--terminal-green);
+            color: var(--terminal-green);
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid var(--terminal-green);
+            color: var(--terminal-green);
+            padding: 12px;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: var(--terminal-green);
+            color: black;
+        }
+        button:disabled {
+            border-color: #555;
+            color: #555;
+            cursor: not-allowed;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #004400; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="status-bar">
+            <span>HP: <span id="hp-val">100</span>%</span>
+            <span>CREDITS: <span id="credits-val">50</span></span>
+            <span>LOCATION: <span id="loc-val">未知</span></span>
+        </div>
+        
+        <div id="log-area" id="scroll-target">
+            <!-- 剧情文本会动态插入到这里 -->
+        </div>
+
+        <div id="choices-area">
+            <!-- 按钮会动态插入到这里 -->
+        </div>
+
+        <div id="dev-tools">
+            <button class="dev-btn" onclick="exportScript()">🛠️ 导出剧本 (JSON)</button>
+            <button class="dev-btn" onclick="resetGame(); showNode('start');">🔄 重置游戏</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 第一部分：游戏状态 (State)
+        // ==========================================
+        const gameState = {
+            hp: 100,
+            credits: 50,
+            inventory: [], // 例如 ['access_card', 'weapon']
+            flags: {}      // 记录做出的决定，例如 { met_hacker: true }
+        };
+
+        // ==========================================
+        // 第二部分：剧情数据 (Data)
+        // 这里可以有几千行，甚至从外部 JSON 文件加载
+        // 结构：Key (节点ID) -> Value (描述, 选项)
+        // ==========================================
+        const storyNodes = {
+            "start": {
+                text: "雨水拍打在'老维克'义体诊所的霓虹灯牌上。你摸了摸后颈刚植入的芯片，那里还在隐隐作痛。\n\n你要找的黑客'幻影'就在里面，但他欠了帮派一笔钱。",
+                location: "第7区 - 贫民窟",
+                choices: [
+                    { text: "直接踢门进去", next: "kick_door", cost: 0 },
+                    { text: "观察周围环境", next: "observe", cost: 0 },
+                    { text: "在自动售货机买杯合成咖啡 (10 Credits)", next: "buy_coffee", cost: 10, reqCredits: 10 }
+                ]
+            },
+            "buy_coffee": {
+                text: "温热的劣质液体滑过喉咙，即使全是添加剂的味道，也让你精神了一些。\n(HP + 10)",
+                effect: "heal_10", // 改为字符串标识符，方便 JSON 序列化
+                choices: [
+                    { text: "好了，干正事。进诊所。", next: "start" }
+                ]
+            },
+            "observe": {
+                text: "你绕到诊所侧面，发现排气扇坏了，露出了一个只能容纳一人通过的洞口。通过这里可以绕过前台的保镖。",
+                location: "诊所 - 后巷",
+                choices: [
+                    { text: "从排气口潜入", next: "stealth_entry" },
+                    { text: "还是走正门吧", next: "start" }
+                ]
+            },
+            "kick_door": {
+                text: "你一脚踹开大门。里面的两个'漩涡帮'混混立刻拔出了热能刀。\n\n“找死吗，小子？”",
+                location: "诊所 - 大堂",
+                choices: [
+                    { text: "拔枪射击 (需要武器)", next: "shoot", reqItem: "weapon" },
+                    { text: "试图谈判", next: "negotiate" },
+                    { text: "转身逃跑", next: "run_away" }
+                ]
+            },
+            "stealth_entry": {
+                text: "你像老鼠一样钻进管道，灰尘呛得你难受。你透过格栅看到了'幻影'，他正被绑在手术椅上，并没有保镖看守他。这是个机会。",
+                location: "诊所 - 手术室",
+                choices: [
+                    { text: "跳下去救他", next: "save_phantom" }
+                ]
+            },
+            "negotiate": {
+                text: "你举起双手：“我是来替他还钱的。”\n混混们对视了一眼，“连本带利，200 Credits。现在就要。”",
+                choices: [
+                    { text: "支付 200 Credits", next: "pay_debt", reqCredits: 200 },
+                    { text: "我没那么多钱... (HP -50)", next: "beat_up" }
+                ]
+            },
+            "beat_up": {
+                text: "还没等你解释，一记重拳就把你打飞到了墙上。他们搜走了你身上所有的钱，把你扔到了大街上。",
+                effect: "damage_50_lose_money",
+                choices: [
+                    { text: "该死...重新开始。", next: "start_reset" }
+                ]
+            },
+            "save_phantom": {
+                text: "你割断了绳子。'幻影'看着你：“谢了兄弟。作为回报，这个给你。”\n他递给你一把改装过的【智能手枪】。",
+                effect: "get_weapon",
+                choices: [
+                    { text: "收下武器，离开这里", next: "mission_complete" }
+                ]
+            },
+            "mission_complete": {
+                text: "=== 序章结束 ===\n\n你成功接触了目标并获得了武器。你在夜之城的传奇才刚刚开始。\n\n(此演示到此结束，这展示了逻辑与数据的分离)",
+                location: "夜之城 - 你的公寓",
+                choices: [
+                    { text: "重置游戏", next: "start_reset" }
+                ]
+            },
+            "start_reset": {
+                text: "正在重置系统...",
+                effect: "reset_game",
+                choices: [
+                    { text: "系统重启完成", next: "start" }
+                ]
+            },
+            "run_away": {
+                text: "你落荒而逃。在夜之城，逃跑并不可耻，但毫无收益。",
+                choices: [
+                    { text: "返回起点", next: "start" }
+                ]
+            },
+             "pay_debt": {
+                text: "你付了钱。混混们让开了路。但这笔钱让你肉痛不已。",
+                effect: "pay_200",
+                choices: [
+                    { text: "去找幻影", next: "save_phantom" }
+                ]
+            }
+        };
+
+        // ==========================================
+        // 第三部分：游戏引擎 (Engine)
+        // ==========================================
+        
+        const logArea = document.getElementById('log-area');
+        const choicesArea = document.getElementById('choices-area');
+        const hpEl = document.getElementById('hp-val');
+        const creditEl = document.getElementById('credits-val');
+        const locEl = document.getElementById('loc-val');
+
+        // 为了方便 JSON 导出，我们将效果逻辑单独映射
+        // Unity 中也可以用类似 switch case 或 Command Pattern 处理这些字符串ID
+        const effectHandlers = {
+            "heal_10": () => updateHP(10),
+            "damage_50_lose_money": () => { updateHP(-50); updateCredits(-gameState.credits); },
+            "get_weapon": () => addItem("weapon"),
+            "pay_200": () => updateCredits(-200),
+            "reset_game": () => resetGame()
+        };
+
+        function updateHP(amount) {
+            gameState.hp += amount;
+            if(gameState.hp > 100) gameState.hp = 100;
+            if(gameState.hp < 0) gameState.hp = 0;
+            hpEl.innerText = gameState.hp;
+            if(amount < 0) logSystem(`受到伤害: ${amount} HP`);
+            else if(amount > 0) logSystem(`恢复生命: ${amount} HP`);
+        }
+
+        function updateCredits(amount) {
+            gameState.credits += amount;
+            creditEl.innerText = gameState.credits;
+            if(amount < 0) logSystem(`失去信用点: ${Math.abs(amount)}`);
+            else logSystem(`获得信用点: ${amount}`);
+        }
+
+        function addItem(item) {
+            if(!gameState.inventory.includes(item)) {
+                gameState.inventory.push(item);
+                logSystem(`获得物品: [${item}]`);
+            }
+        }
+
+        function logSystem(msg) {
+            const div = document.createElement('div');
+            div.className = 'system-msg';
+            div.innerText = msg;
+            logArea.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function resetGame() {
+            gameState.hp = 100;
+            gameState.credits = 50; 
+            gameState.inventory = [];
+            gameState.flags = {};
+            hpEl.innerText = 100;
+            creditEl.innerText = 50;
+            logArea.innerHTML = '';
+        }
+
+        function showNode(nodeId) {
+            const node = storyNodes[nodeId];
+            if (!node) {
+                console.error("Node not found:", nodeId);
+                return;
+            }
+
+            // 执行效果 (通过查找表)
+            if (node.effect && effectHandlers[node.effect]) {
+                effectHandlers[node.effect]();
+            }
+
+            if (node.location) {
+                locEl.innerText = node.location;
+            }
+
+            const textDiv = document.createElement('div');
+            textDiv.className = 'story-text';
+            textDiv.innerText = node.text;
+            logArea.appendChild(textDiv);
+            scrollToBottom();
+
+            choicesArea.innerHTML = '';
+            
+            node.choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.innerText = choice.text;
+                
+                if (choice.reqCredits && gameState.credits < choice.reqCredits) {
+                    btn.disabled = true;
+                    btn.innerText += ` (需要 ${choice.reqCredits} Credits)`;
+                }
+                
+                if (choice.reqItem && !gameState.inventory.includes(choice.reqItem)) {
+                    btn.disabled = true;
+                    btn.innerText += ` (需要物品: ${choice.reqItem})`;
+                }
+
+                if (!btn.disabled) {
+                    btn.onclick = () => {
+                        if (choice.cost) updateCredits(-choice.cost);
+                        showNode(choice.next);
+                    };
+                }
+
+                choicesArea.appendChild(btn);
+            });
+        }
+
+        // 导出功能：展示 JSON
+        function exportScript() {
+            const jsonString = JSON.stringify(storyNodes, null, 2);
+            
+            // 为了演示，直接显示在游戏日志里
+            const div = document.createElement('div');
+            div.style.border = "1px dashed #0f0";
+            div.style.padding = "10px";
+            div.style.margin = "10px 0";
+            div.style.whiteSpace = "pre-wrap";
+            div.style.fontSize = "12px";
+            div.style.color = "#aaa";
+            div.innerText = "=== Unity 导出数据 (JSON) ===\n你可以直接复制下面的内容保存为 story.json\n\n" + jsonString;
+            
+            logArea.appendChild(div);
+            scrollToBottom();
+            
+            alert("剧本数据已生成到下方日志区域！\n将来在 Unity 中，你可以使用 JsonUtility.FromJson 来读取它。");
+        }
+
+        // 启动游戏
+        resetGame();
+        showNode('start');
+
+    </script>
+</body>
+</html>
